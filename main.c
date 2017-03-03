@@ -6,7 +6,11 @@
 
 #include IMPL
 
-#ifdef OPT
+#ifdef TRIE
+#define OUT_FILE "trie.txt"
+#elif defined HASH
+#define OUT_FILE "hash.txt"
+#elif defined OPT
 #define OUT_FILE "opt.txt"
 #else
 #define OUT_FILE "orig.txt"
@@ -47,12 +51,21 @@ int main(int argc, char *argv[])
     pHead = (entry *) malloc(sizeof(entry));
     printf("size of entry : %lu bytes\n", sizeof(entry));
     e = pHead;
+#ifndef TRIE
     e->pNext = NULL;
+#else
+    e-> isword = 0;
+#endif
+
+#ifndef TRIE
+    e->pNext = NULL;
+#endif
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
     clock_gettime(CLOCK_REALTIME, &start);
+#ifdef TRIE
     while (fgets(line, sizeof(line), fp)) {
         while (line[i] != '\0')
             i++;
@@ -60,6 +73,36 @@ int main(int argc, char *argv[])
         i = 0;
         e = append(line, e);
     }
+
+#elif defined HASH
+
+    entry* hash_table[MOD];
+    entry* tmp[MOD];
+    unsigned int index = 0;
+
+    for (int i = 0; i < MOD; ++i) {
+        hash_table[i] = (entry *) malloc(sizeof(entry));
+        hash_table[i]->pNext = NULL;
+        tmp[i] = hash_table[i];
+
+    }
+    while (fgets(line, sizeof(line), fp)) {
+        while (line[i] != '\0')
+            i++;
+        line[i - 1] = '\0';
+        i = 0;
+        index = hash(line);
+        tmp[index] = append(line, tmp[index]);
+    }
+#else
+    while (fgets(line, sizeof(line), fp)) {
+        while (line[i] != '\0')
+            i++;
+        line[i - 1] = '\0';
+        i = 0;
+        e = append(line, e);
+    }
+#endif
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time1 = diff_in_second(start, end);
 
@@ -71,11 +114,20 @@ int main(int argc, char *argv[])
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
     e = pHead;
-
+#ifndef TRIE
+#if defined HASH
+    index = hash(input);
+    e = hash_table[index];
+#endif
     assert(findName(input, e) &&
            "Did you implement findName() in " IMPL "?");
     assert(0 == strcmp(findName(input, e)->lastName, "zyxel"));
-
+#else/*
+    assert(findName(input, e) &&
+           "Did you implement findName() in " IMPL "?");
+    assert(0 == strcmp(findName(input, e)->lastName, "zyxel"));
+*/
+#endif
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
@@ -91,9 +143,13 @@ int main(int argc, char *argv[])
 
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
-
+#ifdef TRIE
+    free(pHead);
+#elif HASH
+    for(int i=0; i<26; ++i)free(hash_table[i]);
+#else
     if (pHead->pNext) free(pHead->pNext);
     free(pHead);
-
+#endif
     return 0;
 }
